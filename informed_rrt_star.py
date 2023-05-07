@@ -13,6 +13,7 @@ from mapping import SCALE_FACTOR
 import heapq
 from heapq import heapify
 import time
+from copy import deepcopy
 
 
 
@@ -229,6 +230,7 @@ def explore(pixel_map:list, explored_nodes:list, start_point:tuple, goal_point:t
     gen_pts_set.add(start_point)
     solution_path_list = []
     start_time = time.time()
+    lowest_cost = float('inf')
 
     for i in range(0, num_of_iterations):
         if time.time() - start_time >= time_limit:
@@ -250,10 +252,32 @@ def explore(pixel_map:list, explored_nodes:list, start_point:tuple, goal_point:t
                     update_neighborhood(new_node, nodes_in_neighborhood, explored_nodes, pixel_map)
                     
                     if distance(pt1= new_pt , pt2= goal_point) < goal_radius:
-                        print("solution found...")
                         solutions_set.add(new_pt)
                         solution_path_list.append(backtrack(new_node, pixel_map))
-    best_solution = get_current_best_solution(solutions_set, pixel_map)
+                    
+                    best_solution = get_current_best_solution(solutions_set, pixel_map)
+                    if (best_solution is not None) and (best_solution["c2c"] < lowest_cost) :
+                        solution = backtrack(best_solution, pixel_map)
+                        lowest_cost = best_solution["c2c"]
+                        starting_map = deepcopy(color_map)
+                        for i in explored_nodes_list:
+                            mapping.draw_node(child_coordinates=i["selfCoordinates"], 
+                                            parent_coordinates=i["parentCoordinates"], 
+                                            map= starting_map, 
+                                            color= mapping.BLUE)
+                        cv.circle(starting_map, GOAL_POINT, radius=GOAL_RADIUS, color=mapping.GRAY, thickness=-1)
+                        for i in solution:
+                            mapping.draw_node(child_coordinates=i["selfCoordinates"], \
+                                                parent_coordinates=i["parentCoordinates"], \
+                                                map= starting_map, 
+                                                color= mapping.RED)
+                        end_point = solution[-1]
+                        mapping.draw_node(child_coordinates=end_point["selfCoordinates"], \
+                                            parent_coordinates= None, \
+                                            map= starting_map, 
+                                            color= mapping.GREEN)
+                        cv.imshow('informed RRT* Algorithm', starting_map)
+                        cv.waitKey(0)
     return best_solution
                     
 
@@ -283,14 +307,14 @@ if __name__ == "__main__":
     start_time = time.time()
     explored_nodes_list = []
     NUM_OF_ITERATIONS = 50000
-    START_POINT = (int(X_MAX/2 - 50), int(Y_MAX/2))
-    GOAL_POINT = (int(X_MAX/2 + 50),int (Y_MAX/2))
-    GOAL_RADIUS = 5
+    START_POINT = (10, 10)
+    GOAL_POINT = (250, 250)
+    GOAL_RADIUS = 10
     rewiring_radius = 20
-    cbest = .79
+    cbest = .99
     time_limit = 15
 
-    color_map = mapping.draw_simple_map()
+    color_map = mapping.draw_random_map(100)
     pixel_info_map = create_pixel_info_map(color_map)
     
     if( not mapping.point_is_valid(color_map=color_map, coordinates=START_POINT)):
@@ -301,6 +325,8 @@ if __name__ == "__main__":
         print("invalid goal point")
         exit()
     
+    print('Starting exploration...')
+
     starting_node = {"c2c": 0, "parentCoordinates": None, "selfCoordinates": START_POINT, "obstacle": False}
     explored_nodes_list.append(starting_node)
     
@@ -330,8 +356,6 @@ if __name__ == "__main__":
         mapping.draw_node(child_coordinates=i["selfCoordinates"], \
                           parent_coordinates=i["parentCoordinates"], \
                           map= color_map, color= mapping.BLUE)
-    cv.imshow('informed RRT* Algorithm', color_map)
-    cv.waitKey(0)
 
     cv.circle(color_map, GOAL_POINT, radius=GOAL_RADIUS, color=mapping.GRAY, thickness=-1)
 
@@ -339,8 +363,6 @@ if __name__ == "__main__":
         mapping.draw_node(child_coordinates=i["selfCoordinates"], \
                           parent_coordinates=i["parentCoordinates"], \
                           map= color_map, color= mapping.RED)
-        cv.imshow('informed RRT* Algorithm', color_map)
-        cv.waitKey(0)
                         
     end_point = solution[-1]
     mapping.draw_node(child_coordinates=i["selfCoordinates"], \
