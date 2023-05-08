@@ -277,7 +277,7 @@ def explore(pixel_map:list, explored_nodes:list, start_point:tuple, goal_point:t
                                             map= starting_map, 
                                             color= mapping.GREEN)
                         cv.imshow('informed RRT* Algorithm', starting_map)
-                        cv.waitKey(0)
+                        cv.waitKey(1)
     return best_solution
                     
 
@@ -310,11 +310,11 @@ if __name__ == "__main__":
     START_POINT = (10, 10)
     GOAL_POINT = (250, 250)
     GOAL_RADIUS = 10
-    rewiring_radius = 20
+    rewiring_radius = 30
     cbest = .99
-    time_limit = 15
+    time_limit = 60
 
-    color_map = mapping.draw_random_map(100)
+    color_map = mapping.draw_simple_map2()
     pixel_info_map = create_pixel_info_map(color_map)
     
     if( not mapping.point_is_valid(color_map=color_map, coordinates=START_POINT)):
@@ -351,6 +351,9 @@ if __name__ == "__main__":
 
 
     #--- Display results ----------------------------
+
+    print()
+    print("Done!")
 
     for i in explored_nodes_list:
         mapping.draw_node(child_coordinates=i["selfCoordinates"], \
