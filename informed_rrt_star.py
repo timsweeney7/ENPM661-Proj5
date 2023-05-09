@@ -11,6 +11,7 @@ import numpy as np
 import cv2 as cv
 from mapping import SCALE_FACTOR
 import heapq
+from queue import Queue
 from heapq import heapify
 import time
 from copy import deepcopy
@@ -182,35 +183,34 @@ def create_new_node(pt, nodes_in_neightborhood):
                             "parentCoordinates": best_neighbor, 
                             "selfCoordinates": pt, 
                             "obstacle": False}
-                
-                path = backtrack(new_node, pixel_info_map)
-                debug_count = 0
-                for node in path:
-                    if node["parentCoordinates"] is not None:
-                        debug_count += distance(pt1= node["parentCoordinates"], pt2= node["selfCoordinates"])
-                # if debug_count != new_node["c2c"]:
-                #     # print("gotcha")
                 return new_node
     except IndexError:
         return None
 
 
-def update_neighborhood(new_node, nodes_in_neightborhood, explored_nodes, pixel_map): 
-    for node in nodes_in_neightborhood:
-        dist = distance(pt1= new_node["selfCoordinates"], pt2=node ["selfCoordinates"])
-        tempC2C = dist + new_node["c2c"]
-        if tempC2C < node["c2c"]: 
-            if path_is_good(pt1=new_node["selfCoordinates"], pt2=node["selfCoordinates"]):
-                updated_neighbor = {"c2c": tempC2C, 
-                                    "parentCoordinates": new_node["selfCoordinates"], 
-                                    "selfCoordinates": node["selfCoordinates"], 
-                                    "obstacle": False}
-                for explored_node in explored_nodes:
-                    if updated_neighbor["selfCoordinates"] == explored_node["selfCoordinates"]:
-                        explored_node["c2c"] = updated_neighbor["c2c"]
-                        explored_node["parentCoordinates"] = updated_neighbor["parentCoordinates"]
-                        x, y = explored_node["selfCoordinates"]
-                        pixel_map[y][x] = explored_node
+def update_map(new_node, explored_nodes, pixel_map, rewire_radius): 
+    _queue = Queue()
+    _queue.put(new_node)
+
+    while not _queue.empty():
+        current_node = _queue.get()
+        nodes_in_neightborhood = get_neighbor_nodes(current_node["selfCoordinates"], rewire_radius, explored_nodes)
+        for node in nodes_in_neightborhood:
+            dist = distance(pt1= current_node["selfCoordinates"], pt2=node ["selfCoordinates"])
+            tempC2C = dist + current_node["c2c"]
+            if tempC2C < node["c2c"]: 
+                if path_is_good(pt1=current_node["selfCoordinates"], pt2=node["selfCoordinates"]):
+                    updated_neighbor = {"c2c": tempC2C, 
+                                        "parentCoordinates": current_node["selfCoordinates"], 
+                                        "selfCoordinates": node["selfCoordinates"], 
+                                        "obstacle": False}
+                    for explored_node in explored_nodes:
+                        if updated_neighbor["selfCoordinates"] == explored_node["selfCoordinates"]:
+                            explored_node["c2c"] = updated_neighbor["c2c"]
+                            explored_node["parentCoordinates"] = updated_neighbor["parentCoordinates"]
+                            x, y = explored_node["selfCoordinates"]
+                            pixel_map[y][x] = explored_node
+                            _queue.put(explored_node)
 
 
 """
@@ -253,7 +253,7 @@ def explore(pixel_map:list, explored_nodes:list, start_point:tuple, goal_point:t
                     explored_nodes.append(new_node)
                     gen_pts_set.add((x, y))  
                     pixel_map[y][x] = new_node
-                    update_neighborhood(new_node, nodes_in_neighborhood, explored_nodes, pixel_map)
+                    update_map(new_node, explored_nodes, pixel_map, rewiring_radius)
                     
                     if distance(pt1= new_pt , pt2= goal_point) < goal_radius:
                         solutions_set.add(new_pt)
@@ -320,14 +320,14 @@ if __name__ == "__main__":
     start_time = time.time()
     explored_nodes_list = []
     NUM_OF_ITERATIONS = 50000
-    START_POINT = (20, 20)
-    GOAL_POINT = (280, 280)
+    START_POINT = (20, 150)
+    GOAL_POINT = (280, 150)
     GOAL_RADIUS = 10
-    rewiring_radius = 25
+    rewiring_radius = 20
     cbest = .99
     time_limit = 60
 
-    color_map = mapping.draw_simple_map1()
+    color_map = mapping.draw_simple_map2()
     pixel_info_map = create_pixel_info_map(color_map)
     
     if( not mapping.point_is_valid(color_map=color_map, coordinates=START_POINT)):
