@@ -67,6 +67,7 @@ def get_random_point (start_point:tuple, goal_point:tuple, best_solution:dict):
                 semi_major_axis = best_solution["c2c"] / 2
                 semi_minor_axis = math.sqrt(pow(cost_max, 2) - pow(cost_min, 2))/2
                 ellipse_angle = np.arctan2(goal_point[1] - start_point[1], goal_point[0] - start_point[0])
+                ellipse_angle_deg = np.rad2deg(ellipse_angle)
                 center_x = (start_point[0] + goal_point[0])/2
                 center_y = (start_point[1] + goal_point[1])/2
 
@@ -85,16 +86,18 @@ def get_random_point (start_point:tuple, goal_point:tuple, best_solution:dict):
                 y_point = rand_point[1] + center_y
                 x_point = int(x_point)
                 y_point = int(y_point)
-        
-            return (x_point, y_point)
-        return(None)
+                ellipse = {"center":(round(center_x), round(center_y)),
+                           "axes":( round(semi_major_axis), round(semi_minor_axis)),
+                           "angle": ellipse_angle_deg}
+            return ((x_point, y_point), ellipse)
+        return(None, None)
 
     else:
         # generate a random point in the bounds of the map
         x_coord = random.randint(0, mapping.X_MAX_SCALED-1)
         y_coord = random.randint(0, mapping.Y_MAX_SCALED-1)
         rand_pt = (x_coord, y_coord)
-        return rand_pt
+        return (rand_pt, None)
 
 
 def distance (pt1, pt2): 
@@ -231,12 +234,13 @@ def explore(pixel_map:list, explored_nodes:list, start_point:tuple, goal_point:t
     solution_path_list = []
     start_time = time.time()
     lowest_cost = float('inf')
+    ellipse = None
 
     for i in range(0, num_of_iterations):
         if time.time() - start_time >= time_limit:
             break  # time limit reached, break out of the loop
         best_solution = get_current_best_solution(solutions_set, pixel_map)
-        new_pt = get_random_point(start_point, goal_point, best_solution)
+        new_pt, ellipse = get_random_point(start_point, goal_point, best_solution)
         if new_pt is None:
             break
         x, y = new_pt
@@ -276,9 +280,18 @@ def explore(pixel_map:list, explored_nodes:list, start_point:tuple, goal_point:t
                                             parent_coordinates= None, \
                                             map= starting_map, 
                                             color= mapping.GREEN)
+                        if ellipse is not None:
+                            cv.ellipse(img= starting_map, 
+                                    center= ellipse["center"],
+                                    axes=ellipse["axes"],
+                                    angle=ellipse["angle"],
+                                    startAngle=0,
+                                    endAngle=360,
+                                    color=mapping.BLACK,
+                                    thickness= 2)
                         cv.imshow('informed RRT* Algorithm', starting_map)
                         cv.waitKey(1)
-    return best_solution
+    return best_solution, ellipse
                     
 
 def backtrack (last_node:dict, map_:list):
@@ -307,14 +320,14 @@ if __name__ == "__main__":
     start_time = time.time()
     explored_nodes_list = []
     NUM_OF_ITERATIONS = 50000
-    START_POINT = (10, 10)
-    GOAL_POINT = (250, 250)
+    START_POINT = (20, 20)
+    GOAL_POINT = (280, 280)
     GOAL_RADIUS = 10
-    rewiring_radius = 30
+    rewiring_radius = 25
     cbest = .99
     time_limit = 60
 
-    color_map = mapping.draw_simple_map2()
+    color_map = mapping.draw_simple_map1()
     pixel_info_map = create_pixel_info_map(color_map)
     
     if( not mapping.point_is_valid(color_map=color_map, coordinates=START_POINT)):
@@ -334,7 +347,7 @@ if __name__ == "__main__":
 
     
     # --- Run the algorithm ---------------------------
-    solution = explore(pixel_map= pixel_info_map, \
+    solution, ellipse = explore(pixel_map= pixel_info_map, \
                              explored_nodes= explored_nodes_list, \
                              start_point=START_POINT,\
                              goal_point=GOAL_POINT,\
@@ -371,6 +384,17 @@ if __name__ == "__main__":
     mapping.draw_node(child_coordinates=i["selfCoordinates"], \
                       parent_coordinates= None, \
                       map= color_map, color= mapping.GREEN)
+    
+    if ellipse is not None:
+        cv.ellipse(img= color_map, 
+                center= ellipse["center"],
+                axes=ellipse["axes"],
+                angle=ellipse["angle"],
+                startAngle=0,
+                endAngle=360,
+                color=mapping.BLACK,
+                thickness= 2)
+                            
     cv.imshow('informed RRT* Algorithm', color_map)
     cv.waitKey(0)
 
